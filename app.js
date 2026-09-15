@@ -69,15 +69,60 @@ function saveState() {
 
 let state = loadState();
 
-/* Import ponctuel de réglages via un lien #import=... (jamais envoyé au serveur :
+/* Import ponctuel de réglages via un lien #i=... (jamais envoyé au serveur :
    un fragment d'URL reste local au navigateur). Permet de pré-remplir l'app sans
-   jamais faire transiter de vraies données personnelles par le dépôt public. */
+   jamais faire transiter de vraies données personnelles par le dépôt public.
+   Format compact (pas du JSON, pour un lien plus court) :
+   settings ~ charges ~ echeances ~ transactions
+   settings   = soldeCourant,soldeDepot,decouvert,tauxUrssaf,objectifCA,datePrelev,dateCloture,delaiEnc,dateRef
+   charge     = label|montant|type|actif(1/0)|dateFin(ou vide)   -- plusieurs séparés par ;
+   echeance   = label|montant|type|dateEcheance|estimee(1/0)     -- plusieurs séparés par ;
+   transaction= type|montant|date|moyenPaiement|categorie|fournisseur|commentaire|datePrelevementOverride */
+function decodeCompactImport(str) {
+  const [s, c, e, t] = str.split('~');
+  const data = {};
+  if (s) {
+    const [soldeCompteCourant, soldeCompteDepot, decouvertAutorise, tauxUrssaf, objectifCA,
+      datePrelevementDiffere, dateClotureDifferee, delaiEncaissementJours, dateReferenceSolde] = s.split(',');
+    data.settings = {
+      soldeCompteCourant: parseFloat(soldeCompteCourant), soldeCompteDepot: parseFloat(soldeCompteDepot),
+      decouvertAutorise: parseFloat(decouvertAutorise), tauxUrssaf: parseFloat(tauxUrssaf),
+      objectifCA: parseFloat(objectifCA), datePrelevementDiffere: parseInt(datePrelevementDiffere, 10),
+      dateClotureDifferee: parseInt(dateClotureDifferee, 10), delaiEncaissementJours: parseInt(delaiEncaissementJours, 10),
+      dateReferenceSolde,
+    };
+  }
+  if (c) {
+    data.charges = c.split(';').filter(Boolean).map((row) => {
+      const [label, montant, type, actif, dateFin] = row.split('|');
+      const charge = { label, montant: parseFloat(montant), type, actif: actif === '1' };
+      if (dateFin) charge.dateFin = dateFin;
+      return charge;
+    });
+  }
+  if (e) {
+    data.echeancesAnnuelles = e.split(';').filter(Boolean).map((row) => {
+      const [label, montant, type, dateEcheance, estimee] = row.split('|');
+      return { label, montant: parseFloat(montant), type, dateEcheance, estimee: estimee === '1' };
+    });
+  }
+  if (t) {
+    data.transactions = t.split(';').filter(Boolean).map((row) => {
+      const [type, montant, date, moyenPaiement, categorie, fournisseur, commentaire, datePrelevementOverride] = row.split('|');
+      const tx = { type, montant: parseFloat(montant), date, moyenPaiement, categorie, fournisseur, commentaire };
+      if (datePrelevementOverride) tx.datePrelevementOverride = datePrelevementOverride;
+      return tx;
+    });
+  }
+  return data;
+}
+
 function tryImportFromHash() {
-  if (!location.hash || !location.hash.startsWith('#import=')) return;
+  if (!location.hash || !location.hash.startsWith('#i=')) return;
   try {
-    const b64 = location.hash.slice('#import='.length);
-    const json = decodeURIComponent(escape(atob(b64)));
-    const data = JSON.parse(json);
+    const b64 = location.hash.slice('#i='.length);
+    const compact = decodeURIComponent(escape(atob(b64)));
+    const data = decodeCompactImport(compact);
     if (data.settings) Object.assign(state.settings, data.settings);
     if (data.charges) state.charges = data.charges.map((c) => ({ ...c, id: uid() }));
     if (data.echeancesAnnuelles) state.echeancesAnnuelles = data.echeancesAnnuelles.map((e) => ({ ...e, id: uid() }));
