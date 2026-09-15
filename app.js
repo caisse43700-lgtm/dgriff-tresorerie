@@ -69,6 +69,28 @@ function saveState() {
 
 let state = loadState();
 
+/* Import ponctuel de réglages via un lien #import=... (jamais envoyé au serveur :
+   un fragment d'URL reste local au navigateur). Permet de pré-remplir l'app sans
+   jamais faire transiter de vraies données personnelles par le dépôt public. */
+function tryImportFromHash() {
+  if (!location.hash || !location.hash.startsWith('#import=')) return;
+  try {
+    const b64 = location.hash.slice('#import='.length);
+    const json = decodeURIComponent(escape(atob(b64)));
+    const data = JSON.parse(json);
+    if (data.settings) Object.assign(state.settings, data.settings);
+    if (data.charges) state.charges = data.charges.map((c) => ({ ...c, id: uid() }));
+    if (data.echeancesAnnuelles) state.echeancesAnnuelles = data.echeancesAnnuelles.map((e) => ({ ...e, id: uid() }));
+    if (data.transactions) state.transactions = data.transactions.map((t) => ({ ...t, id: uid() }));
+    state.premierLancement = false;
+    saveState();
+  } catch (e) {
+    console.error('Import impossible', e);
+  }
+  history.replaceState(null, '', location.pathname + location.search);
+}
+tryImportFromHash();
+
 /* ---------- Helpers dates ---------- */
 
 function addDays(dateStr, days) {
