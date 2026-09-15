@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>D'Griff Trésorerie</title>
+  <meta name="theme-color" content="#7A2E3A">
+  <meta name="description" content="Trésorerie et budget achats pour D'Griff">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="D'Griff">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>D'Griff Trésorerie</h1>
+    <div class="sub" id="date-du-jour"></div>
+  </header>
+
+  <main>
+    <div class="view active" id="view-dashboard"></div>
+    <div class="view" id="view-saisie"></div>
+    <div class="view" id="view-simulateur"></div>
+    <div class="view" id="view-historique"></div>
+    <div class="view" id="view-reglages"></div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <nav class="bottomnav">
+    <button data-view="dashboard" class="active"><span class="ic">🏠</span>Accueil</button>
+    <button data-view="saisie"><span class="ic">✏️</span>Saisir</button>
+    <button data-view="simulateur"><span class="ic">🧮</span>Simuler</button>
+    <button data-view="historique"><span class="ic">📊</span>Historique</button>
+    <button data-view="reglages"><span class="ic">⚙️</span>Réglages</button>
+  </nav>
+
+  <script src="app.js"></script>
+  <script src="ui.js"></script>
+  <script>
+    document.getElementById('date-du-jour').textContent =
+      new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  </script>
+</body>
+</html>

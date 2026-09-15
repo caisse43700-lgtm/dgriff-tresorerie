@@ -1,0 +1,83 @@
+name: Déploiement GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Déployer sur GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Activer GitHub Pages automatiquement
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/${{ github.repository }}/pages \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -f build_type=workflow 2>/dev/null || \
+          gh api repos/${{ github.repository }}/pages \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            -f build_type=workflow 2>/dev/null || true
+
+      - name: Configurer GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Uploader les fichiers statiques
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Déployer
+        id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Attente avant réessai 1 (incident Pages transitoire)
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 90
+
+      - name: Déployer (réessai 1)
+        id: deployment2
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Attente avant réessai 2
+        if: steps.deployment.outcome == 'failure' && steps.deployment2.outcome == 'failure'
+        run: sleep 180
+
+      - name: Déployer (réessai 2)
+        id: deployment3
+        if: steps.deployment.outcome == 'failure' && steps.deployment2.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Statut final
+        if: always()
+        run: |
+          if [ "${{ steps.deployment.outcome }}" = "success" ] || [ "${{ steps.deployment2.outcome }}" = "success" ] || [ "${{ steps.deployment3.outcome }}" = "success" ]; then
+            echo "✅ Déployé"
+          else
+            echo "❌ Échec après 3 tentatives — incident Pages prolongé, relancer un run NEUF plus tard"
+            exit 1
+          fi
