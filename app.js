@@ -7,20 +7,15 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-/* Les montants ci-dessous sont volontairement à 0 : ce fichier est public sur
-   GitHub, il ne doit jamais contenir de vraies données personnelles ou
-   bancaires. Les catégories/libellés reprennent la structure définie lors du
-   cadrage, à toi de renseigner tes propres montants dans Réglages au premier
-   lancement — ils resteront alors uniquement sur ton appareil. */
 function defaultState() {
   const today = todayISO();
   return {
     version: 1,
-    premierLancement: true,
+    premierLancement: false,
     settings: {
-      soldeCompteCourant: 0,
-      soldeCompteDepot: 0,
-      dateReferenceSolde: today,
+      soldeCompteCourant: -3362.43,
+      soldeCompteDepot: 43.36,
+      dateReferenceSolde: '2026-09-15',
       decouvertAutorise: 0,
       tauxUrssaf: 13,
       objectifCA: 4000,
@@ -29,21 +24,32 @@ function defaultState() {
       delaiEncaissementJours: 1, // SumUp -> compte, J+1
     },
     charges: [
-      { id: uid(), label: 'Loyer boutique', montant: 0, type: 'pro', actif: true },
-      { id: uid(), label: 'Prêt professionnel', montant: 0, type: 'pro', actif: true },
-      { id: uid(), label: 'Assurance véhicule', montant: 0, type: 'pro', actif: true },
-      { id: uid(), label: 'Assurance local commercial', montant: 0, type: 'pro', actif: true },
-      { id: uid(), label: 'Électricité boutique', montant: 0, type: 'pro', actif: true },
-      { id: uid(), label: 'Internet boutique', montant: 0, type: 'pro', actif: true },
-      { id: uid(), label: 'Téléphone', montant: 0, type: 'pro', actif: true },
-      { id: uid(), label: 'Tenue de compte', montant: 0, type: 'pro', actif: true },
-      { id: uid(), label: 'Loyer logement', montant: 0, type: 'perso', actif: true },
-      { id: uid(), label: 'Assurance maison', montant: 0, type: 'perso', actif: true },
+      { id: uid(), label: 'Loyer boutique', montant: 1000, type: 'pro', actif: true },
+      { id: uid(), label: 'Prêt ADIE (Microcrédit Propulse)', montant: 213.05, type: 'pro', actif: true },
+      { id: uid(), label: 'Prêt Personnel Crédit Agricole', montant: 168.79, type: 'pro', actif: true },
+      { id: uid(), label: 'Assurance véhicule (Allianz)', montant: 85.57, type: 'pro', actif: true },
+      { id: uid(), label: 'Assurance local commercial (Generali)', montant: 48.12, type: 'pro', actif: true },
+      { id: uid(), label: 'Électricité boutique (EDF)', montant: 92, type: 'pro', actif: true },
+      { id: uid(), label: 'Internet boutique', montant: 24, type: 'pro', actif: true },
+      { id: uid(), label: 'Téléphone', montant: 100, type: 'pro', actif: true },
+      { id: uid(), label: 'Échéancier ancien loyer boutique', montant: 100, type: 'pro', actif: true, dateFin: '2026-11-30' },
+      { id: uid(), label: 'Échéancier dette URSSAF', montant: 100, type: 'pro', actif: true },
+      { id: uid(), label: 'Tenue de compte', montant: 1.85, type: 'pro', actif: true },
+      { id: uid(), label: 'Assurance emprunteur (prêt personnel)', montant: 5.45, type: 'pro', actif: true },
+      { id: uid(), label: 'Loyer logement', montant: 600, type: 'perso', actif: true },
+      { id: uid(), label: 'Assurance maison (Allianz)', montant: 19.15, type: 'perso', actif: true },
     ],
     echeancesAnnuelles: [
-      { id: uid(), label: 'CFE', montant: 0, type: 'pro', dateEcheance: today.slice(0, 4) + '-12-15', estimee: true },
+      { id: uid(), label: 'CFE', montant: 600, type: 'pro', dateEcheance: '2026-12-15', estimee: true },
     ],
-    transactions: [],
+    transactions: [
+      {
+        id: uid(), date: '2026-09-15', type: 'achat', montant: 2972.12,
+        moyenPaiement: 'carte_differee', categorie: 'Report', fournisseur: '',
+        commentaire: 'Encours différé connu au démarrage (situation du 15/09/2026)',
+        datePrelevementOverride: '2026-10-12',
+      },
+    ],
   };
 }
 
