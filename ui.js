@@ -20,8 +20,17 @@ const TYPES_SAISIE = [
 
 let currentView = 'dashboard';
 let saisieType = 'ca';
+let editingTxId = null;
 let histMonth = window.DG.monthKey(window.DG.todayISO());
 let dernierResultatSim = null;
+
+function openEditTx(id) {
+  const tx = window.DG.state.transactions.find((t) => t.id === id);
+  if (!tx) return;
+  editingTxId = id;
+  saisieType = tx.type;
+  switchView('saisie');
+}
 
 function euro(n) {
   const v = Number(n) || 0;
@@ -121,7 +130,7 @@ function renderDashboard() {
   TYPES_SAISIE.slice(0, 6).forEach((t) => {
     const b = document.createElement('button');
     b.innerHTML = `<span class="ic">${t.ic}</span>${t.l}`;
-    b.onclick = () => { saisieType = t.v; switchView('saisie'); };
+    b.onclick = () => { saisieType = t.v; editingTxId = null; switchView('saisie'); };
     qa.appendChild(b);
   });
 
@@ -136,24 +145,27 @@ function renderDashboard() {
 function renderSaisie() {
   const D = window.DG;
   const wrap = document.getElementById('view-saisie');
+  const editing = editingTxId ? D.state.transactions.find((t) => t.id === editingTxId) : null;
+  if (editingTxId && !editing) editingTxId = null; // référence obsolète (déjà supprimée)
+
   const typeGrid = TYPES_SAISIE.map((t) => `<button data-t="${t.v}" class="${t.v === saisieType ? 'selected' : ''}"><span class="ic">${t.ic}</span>${t.l}</button>`).join('');
 
   let extraFields = '';
   if (saisieType === 'achat') {
     extraFields = `
       <div class="field"><label>Moyen de paiement</label>
-        <select id="f-moyen">${MOYENS_PAIEMENT.map((m) => `<option value="${m.v}">${m.l}</option>`).join('')}</select>
+        <select id="f-moyen">${MOYENS_PAIEMENT.map((m) => `<option value="${m.v}" ${editing && editing.moyenPaiement === m.v ? 'selected' : ''}>${m.l}</option>`).join('')}</select>
       </div>
       <div class="field"><label>Catégorie</label>
-        <select id="f-categorie"><option value="">—</option>${CATEGORIES.map((c) => `<option value="${c}">${c}</option>`).join('')}</select>
+        <select id="f-categorie"><option value="">—</option>${CATEGORIES.map((c) => `<option value="${c}" ${editing && editing.categorie === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
       </div>
-      <div class="field"><label>Fournisseur / plateforme</label><input id="f-fournisseur" type="text" placeholder="TikTok, Whatnot, Internet..."></div>
+      <div class="field"><label>Fournisseur / plateforme</label><input id="f-fournisseur" type="text" placeholder="TikTok, Whatnot, Internet..." value="${editing ? (editing.fournisseur || '') : ''}"></div>
     `;
   } else if (saisieType === 'paiement_charge') {
     const charges = D.state.charges.filter((c) => c.actif);
     extraFields = `
       <div class="field"><label>Charge concernée (optionnel)</label>
-        <select id="f-charge"><option value="">—</option>${charges.map((c) => `<option value="${c.id}" data-montant="${c.montant}">${c.label} (${euro(c.montant)})</option>`).join('')}</select>
+        <select id="f-charge"><option value="">—</option>${charges.map((c) => `<option value="${c.id}" data-montant="${c.montant}" ${editing && editing.chargeId === c.id ? 'selected' : ''}>${c.label} (${euro(c.montant)})</option>`).join('')}</select>
       </div>
     `;
   } else if (saisieType === 'correction_solde') {
@@ -161,21 +173,32 @@ function renderSaisie() {
   }
 
   const montantLabel = saisieType === 'correction_solde' ? 'Nouveau solde total' : 'Montant';
+  const montantValue = editing ? editing.montant : '';
+  const dateValue = editing ? editing.date : D.todayISO();
+  const commentaireValue = editing ? (editing.commentaire || '') : '';
 
   wrap.innerHTML = `
-    <div class="card"><h2>Que veux-tu enregistrer ?</h2><div class="typegrid" id="type-grid">${typeGrid}</div></div>
+    <div class="card"><h2>${editing ? 'Modifier ce mouvement' : 'Que veux-tu enregistrer ?'}</h2><div class="typegrid" id="type-grid">${typeGrid}</div></div>
     <div class="card">
-      <div class="field"><label>${montantLabel}</label><input id="f-montant" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
-      <div class="field"><label>Date</label><input id="f-date" type="date" value="${D.todayISO()}"></div>
+      <div class="field"><label>${montantLabel}</label><input id="f-montant" type="number" step="0.01" inputmode="decimal" placeholder="0,00" value="${montantValue}"></div>
+      <div class="field"><label>Date</label><input id="f-date" type="date" value="${dateValue}"></div>
       ${extraFields}
-      <div class="field"><label>Commentaire (facultatif)</label><textarea id="f-commentaire"></textarea></div>
-      <button class="btn" id="btn-save">Enregistrer</button>
+      <div class="field"><label>Commentaire (facultatif)</label><textarea id="f-commentaire">${commentaireValue}</textarea></div>
+      <button class="btn" id="btn-save">${editing ? 'Enregistrer les modifications' : 'Enregistrer'}</button>
+      ${editing ? '<button class="btn secondary" id="btn-cancel-edit" style="margin-top:10px">Annuler</button>' : ''}
     </div>
   `;
 
   wrap.querySelectorAll('#type-grid button').forEach((b) => {
     b.onclick = () => { saisieType = b.dataset.t; renderSaisie(); };
   });
+
+  if (editing) {
+    document.getElementById('btn-cancel-edit').onclick = () => {
+      editingTxId = null;
+      switchView('historique');
+    };
+  }
 
   document.getElementById('btn-save').onclick = () => {
     const montant = parseFloat(document.getElementById('f-montant').value);
@@ -193,9 +216,15 @@ function renderSaisie() {
       tx.chargeId = document.getElementById('f-charge').value || null;
     }
 
-    D.addTransaction(tx);
-    toast('Enregistré ✓');
-    switchView('dashboard');
+    if (editingTxId) {
+      D.updateTransaction(editingTxId, tx);
+      editingTxId = null;
+      toast('Modifié ✓');
+    } else {
+      D.addTransaction(tx);
+      toast('Enregistré ✓');
+    }
+    switchView('historique');
   };
 }
 
@@ -245,6 +274,7 @@ function renderSimulateur() {
     `;
     document.getElementById('sim-confirm').onclick = () => {
       saisieType = 'achat';
+      editingTxId = null;
       switchView('saisie');
       setTimeout(() => { document.getElementById('f-montant').value = r.montant.toFixed(2); }, 0);
     };
@@ -304,9 +334,13 @@ function renderHistorique() {
       <div class="txt"><div class="t">${typeLabel(t.type)}${t.fournisseur ? ' · ' + t.fournisseur : ''}</div>
       <div class="m">${fmtDate(t.date)}${t.categorie ? ' · ' + t.categorie : ''}${t.commentaire ? ' · ' + t.commentaire : ''}</div></div>
       <div class="amt num ${negatif ? 'neg' : 'pos'}">${sign}${euro(t.montant)}</div>
+      <button class="iconbtn" data-edit="${t.id}">✏️</button>
       <button class="iconbtn" data-del="${t.id}">🗑</button>
     `;
     list.appendChild(el);
+  });
+  list.querySelectorAll('[data-edit]').forEach((b) => {
+    b.onclick = () => openEditTx(b.dataset.edit);
   });
   list.querySelectorAll('[data-del]').forEach((b) => {
     b.onclick = () => { if (confirm('Supprimer ce mouvement ?')) { D.deleteTransaction(b.dataset.del); renderHistorique(); } };
@@ -440,11 +474,13 @@ function renderChargesList() {
       <button class="iconbtn" data-del>🗑</button>
     `;
     row.querySelectorAll('[data-f]').forEach((inp) => {
-      inp.onchange = () => {
+      const save = () => {
         const f = inp.dataset.f;
         c[f] = f === 'montant' ? parseFloat(inp.value) || 0 : inp.value;
         D.saveState();
       };
+      inp.addEventListener('input', save);
+      inp.addEventListener('change', save);
     });
     row.querySelector('[data-del]').onclick = () => {
       D.state.charges = D.state.charges.filter((x) => x.id !== c.id);
@@ -469,11 +505,13 @@ function renderEcheancesList() {
       <button class="iconbtn" data-del>🗑</button>
     `;
     row.querySelectorAll('[data-f]').forEach((inp) => {
-      inp.onchange = () => {
+      const save = () => {
         const f = inp.dataset.f;
         e[f] = f === 'montant' ? parseFloat(inp.value) || 0 : inp.value;
         D.saveState();
       };
+      inp.addEventListener('input', save);
+      inp.addEventListener('change', save);
     });
     row.querySelector('[data-del]').onclick = () => {
       D.state.echeancesAnnuelles = D.state.echeancesAnnuelles.filter((x) => x.id !== e.id);
@@ -487,7 +525,10 @@ function renderEcheancesList() {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('nav.bottomnav button').forEach((b) => {
-    b.onclick = () => switchView(b.dataset.view);
+    b.onclick = () => {
+      if (b.dataset.view === 'saisie') editingTxId = null;
+      switchView(b.dataset.view);
+    };
   });
   switchView('dashboard');
 
