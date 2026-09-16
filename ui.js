@@ -380,7 +380,20 @@ function renderReglages() {
       <div class="card" id="echeances-list"></div>
       <button class="btn secondary" id="add-echeance" style="margin-top:10px">+ Ajouter une échéance</button>
     </section>
+
+    <section class="subsection">
+      <h3>Réinitialisation</h3>
+      <p style="color:var(--text-dim);font-size:.85rem;margin-top:-4px">Efface toutes les données de cet appareil (mouvements, charges modifiées, réglages) et recharge l'application avec ses valeurs de départ.</p>
+      <button class="btn danger" id="r-reset">Réinitialiser aux valeurs de départ</button>
+    </section>
   `;
+
+  document.getElementById('r-reset').onclick = () => {
+    if (confirm('Effacer toutes les données enregistrées sur cet appareil et repartir des valeurs de départ ?')) {
+      try { localStorage.removeItem('dgriff_tresorerie_v1'); } catch (e) {}
+      location.reload();
+    }
+  };
 
   document.getElementById('r-save').onclick = () => {
     s.soldeCompteCourant = parseFloat(document.getElementById('r-courant').value) || 0;
